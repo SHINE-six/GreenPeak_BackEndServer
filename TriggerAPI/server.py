@@ -28,6 +28,7 @@ class IotItem(BaseModel):
         "current": [None],
         "power": [None],
     }
+    schedule: 
 
 
 @app.get("/")
