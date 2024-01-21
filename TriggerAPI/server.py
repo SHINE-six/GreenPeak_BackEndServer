@@ -28,7 +28,11 @@ class IotItem(BaseModel):
         "current": [None],
         "power": [None],
     }
-    schedule: 
+    schedule: list = {
+        "Week" : {
+            
+        }
+    }
 
 
 @app.get("/")
