@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from datetime import datetime
 
+import uvicorn
+
 app = FastAPI()
 
 # ----------- Importing Firebase Admin SDK ----------------
@@ -21,17 +23,17 @@ class IotItem(BaseModel):
     onStatus: bool
     location: str
     abnormalStatus: bool = False
-    currentData: list = {
+    currentData: dict = {
         "time": [datetime.now().time().strftime("%H:%M")],
         "date": [datetime.now().date().strftime("%d/%m/%Y")],
         "voltage": [None],
         "current": [None],
         "power": [None],
     }
-    schedule: list = {
-        "Week" : {
-            
-        }
+    schedule: dict = {
+        "day": [None],  # string
+        "timeOn": [None], 
+        "timeOff": [None],
     }
 
 
@@ -66,10 +68,11 @@ async def create_item(item: IotItem):
         "location": item.location,
         "abnormalStatus": item.abnormalStatus,
         "currentData": item.currentData,
+        "schedule": item.schedule,
     })
     return {"success": "Item created"}
 
-@app.put("/items/{item_id}")
+@app.put("/items/{item_id}/onStatus")
 async def negate_onStatus(item_id: str):
     doc_ref = db.collection('IoTDevices').document(str(item_id))
     doc = doc_ref.get()
@@ -129,3 +132,30 @@ async def add_currentData(item_id: str, data: dict):
         return {"success": currentData}
     else:
         return {"error": "Item not found"}
+
+
+@app.post("/items/{item_id}/schedule")
+async def add_schedule(item_id: str, data: dict):
+    doc_ref = db.collection('IoTDevices').document(str(item_id))
+    doc = doc_ref.get()
+    if doc.exists:
+        schedule = doc.to_dict().get("schedule", {})
+        
+        if all(key in data for key in ["day", "timeOn", "timeOff"]):
+            updated_data = {
+                "day": schedule.get("day", []) + [data["day"]],
+                "timeOn": schedule.get("timeOn", []) + [data["timeOn"]],
+                "timeOff": schedule.get("timeOff", []) + [data["timeOff"]],
+            }
+            
+            doc_ref.update({"schedule": updated_data})
+            return {"success": updated_data}
+        else:
+            return {"error": "Missing required keys in data"}
+    else:
+        return {"error": "Item not found"}
+
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8080) 
